@@ -1,0 +1,148 @@
+---
+title: "Analysis of Severe Weather Events and Their Impact on the United States"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+The basic goal of this assignment is to explore the NOAA Storm Database and 
+answer some basic questions about severe weather events. The data analysis aims
+to answer the following questions.
+
+1. Across the United States, which types of events (as indicated in the 
+EVTYPE variable) are most harmful with respect to population health?
+
+2. Across the United States, which types of events have the greatest economic 
+consequences?
+
+# Synopsis
+
+The data was obtained from the database of National Weather Service which 
+contained natural events and their effects on the United States from 1950 to 
+2011. Only data from 1996 - 2011 were considered as previous years do not record 
+all types of events. Out of the initial 902297 observations, only 81 were 
+considered which were after 1996 and had positive number of fatalities, injuries
+, property damage, and crop damage. The analysis showed that tornadoes caused 
+the most fatalities whereas floods caused the most injuries. Furthermore, 
+hurricane was the single greatest detriment to the economy as it caused the 
+greatest amount of property and crop damage. 
+
+## Data Preprocessing
+
+To begin the analysis, I loaded in the .csv file and some packages.
+```{r download, cache = TRUE}
+# Download file
+linkurl <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+download.file(linkurl, "stormdata.csv")
+
+# Load the data
+storm <- read.csv("stormdata.csv", stringsAsFactors = FALSE)
+```
+
+```{r packages, message = FALSE, warning = FALSE}
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+library(reshape2)
+```
+
+Subsequently, I created a new data frame containing only the eight relevant 
+variables out of 37 that were provided. I further subsetted by including only 
+the observations with fatalities, injuries, property damage, and crop damage all
+greater than 0. All variable names were formatted to proper format and variation
+in the event type (i.e "flashflood" "flood") were removed.
+
+```{r preprocess, cache = TRUE}
+# Make new data frame with the relevant variables.
+after1996 <- storm %>% 
+        
+        select(BGN_DATE, EVTYPE, FATALITIES, INJURIES, 
+                    PROPDMG, PROPDMGEXP, CROPDMG, CROPDMGEXP) %>%
+        
+        # Subset with only the rows containing data from January 1996
+        # This is when they started collecting all event types
+        filter(mdy_hms(BGN_DATE) >= "1996-01-01", 
+                    FATALITIES > 0,
+                    INJURIES > 0,
+                    PROPDMG > 0,
+                    CROPDMG> 0 
+                   )
+
+# Clean up the variable names, format errors in event type 'evtype'
+names(after1996) <- tolower(names(after1996))
+names(after1996) <- sub("_", ".", names(after1996))
+
+after1996$evtype <- tolower(after1996$evtype)
+after1996$evtype <- gsub(" ", "", after1996$evtype)
+after1996$evtype <- gsub("-", "", after1996$evtype)
+after1996$evtype <- sub("^(hurricane).*", "hurricane", after1996$evtype)
+after1996$evtype <- sub("(.*flood)$", "flood", after1996$evtype)
+after1996$evtype <- sub("(.*wind)$", "thunderstormwind", after1996$evtype)
+
+```
+
+
+## Results
+
+For the effect on public health, there are two types of harm to be considered
+which includes fatalities and injuries. From 1996 to 2011 in the United States,
+tornadoes resulted in the highest number of fatalities whereas floods resulted
+in the highest number of injuries. 
+
+```{r health, out.width= "200%"}
+population.health <- after1996 %>%
+        group_by(evtype) %>%
+        summarise(
+                fatalities = sum(fatalities),
+                injuries = sum(injuries)
+        )
+
+# Create long version for plotting
+population.health.long <- melt(population.health, id.vars = "evtype")
+
+# Plot
+ggplot(data = population.health.long,
+        aes(x = evtype, y = value, fill = variable)) + 
+        geom_bar(stat = 'identity', position = 'dodge') + 
+        labs(title = "Total Fatalities and Injuries from 1996-2011", 
+             x = "Event Type") + coord_flip()
+```
+
+For economic consequence, there was a clear winner. From 1996 to 2011 in the
+United States, hurricanes had the biggest impact on the economy as it caused the
+highest amount of property and crop damage.
+
+```{r economy, out.width = "200%"}
+exponent.key <- c(K = 1000, M = 1000000, B = 1000000000)
+
+# Create new variables that sum the total property and crop damage
+econ.dmg <- after1996 %>%
+        group_by(evtype) %>%
+        summarise(
+                property = sum(propdmg * exponent.key[propdmgexp]),
+                crop = sum(cropdmg * exponent.key[cropdmgexp])
+        )
+
+# Create long version for plotting
+econ.dmg.long <- melt(econ.dmg, id.vars = "evtype")
+
+# Plot
+ggplot(data = econ.dmg.long,
+       aes(x = evtype, y = value, fill = variable)) + 
+        geom_bar(stat = 'identity', position = 'dodge') + 
+        labs(title = "Total Property and Crop Damage from 1996-2011", 
+             x = "Event Type", fill = "Type of Damage") + coord_flip()
+```
+
+# Conclusion
+
+From this brief analysis of the natural events data, it may be concluded that
+tornadoes, floods, and hurricanes cause the greatest amount of damage to 
+public health as well as the economy. However, it should be noted that only 81
+observations were considered and this report only takes an initial look at the
+numbers without consideration of the magnitude or the location of these events.
+For future analysis, it would be beneficial to expand the analysis to include
+variables such as the magnitude, location, and the duration of the events.
+
