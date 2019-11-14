@@ -11,8 +11,7 @@ The data analysis aims to answer the following questions.
 ### Methods Used
 * Data Preprocessing
 * Data Visualization
-* Natural Language Processing
-* Data Product Development
+* Interactive graphs and maps
 
 ### Technologies Used
 * R 
