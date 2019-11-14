@@ -6,10 +6,13 @@ download.file(linkurl, "stormdata.csv")
 
 storm <- read.csv("stormdata.csv", stringsAsFactors = FALSE)
 
-# Data preprocessing
-
+# Load required packages
 library(dplyr)
 library(lubridate)
+library(ggplot)
+library(reshape2)
+
+# Data preprocessing
 head(storm)
 
 # Make new data frame with the relevant variables.
@@ -54,8 +57,6 @@ population.health <- after1996 %>%
                 fatalities = sum(fatalities),
                 injuries = sum(injuries)
         )
-library(ggplot)
-library(reshape2)
 population.health.long<-melt(population.health, id.vars = "evtype")
 
 ggplot(data = population.health.long,
